@@ -1,6 +1,10 @@
-import 'package:expenses/models/transaction.dart';
+import 'dart:math';
+import 'package:expenses/components/chart.dart';
 import 'package:flutter/material.dart';
-import 'package:intl/intl.dart';
+
+import 'components/transaction_form.dart';
+import 'components/transaction_list.dart';
+import 'models/transaction.dart';
 
 main() => runApp(const ExpensesApp());
 
@@ -9,74 +13,105 @@ class ExpensesApp extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final ThemeData tema = ThemeData();
+
     return MaterialApp(
-      home: HomePage(),
+      home: const HomePage(),
+      theme: tema.copyWith(
+        colorScheme: tema.colorScheme
+            .copyWith(primary: Colors.purple, secondary: Colors.amber),
+        textTheme: tema.textTheme.copyWith(
+          headline6: const TextStyle(
+              fontFamily: 'OpenSans',
+              fontSize: 18,
+              fontWeight: FontWeight.bold,
+              color: Colors.black),
+        ),
+        appBarTheme: const AppBarTheme(
+          titleTextStyle: TextStyle(
+            fontFamily: 'OpenSans',
+            fontSize: 18,
+            fontWeight: FontWeight.bold,
+          ),
+        ),
+      ),
     );
   }
 }
 
-class HomePage extends StatelessWidget {
-  HomePage({super.key});
+class HomePage extends StatefulWidget {
+  const HomePage({super.key});
 
-  final _transactions = [
-    Transaction(
-      id: 't1',
-      title: 'Tênis Nike',
-      value: 499.99,
-      date: DateTime.now(),
-    ),
-    Transaction(
-      id: 't2',
-      title: 'Conta de Luz',
-      value: 189.85,
-      date: DateTime.now(),
-    ),
-  ];
+  @override
+  State<HomePage> createState() => _HomePageState();
+}
+
+class _HomePageState extends State<HomePage> {
+  final List<Transaction> _transactions = [];
+
+  List<Transaction> get _recentTransactions {
+    return _transactions.where((tr) {
+      return tr.date.isAfter(
+        DateTime.now().subtract(
+          const Duration(days: 7),
+        ),
+      );
+    }).toList();
+  }
+
+  _addTransaction(String title, double value, DateTime date) {
+    final newTrasaction = Transaction(
+      id: Random().nextDouble().toString(),
+      title: title,
+      value: value,
+      date: date,
+    );
+
+    setState(() {
+      _transactions.add(newTrasaction);
+    });
+
+    Navigator.of(context).pop();
+  }
+
+  _removeTransaction(String id) {
+    setState(() {
+      _transactions.removeWhere((tr) => tr.id == id); 
+    });
+  }
+
+  _openTransactionFormModal(BuildContext context) {
+    showModalBottomSheet(
+      context: context,
+      builder: (_) {
+        return TransactionForm(_addTransaction);
+      },
+    );
+  }
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
         title: const Text('Despesas Pessoais'),
-      ),
-      body: Column(
-        crossAxisAlignment: CrossAxisAlignment.stretch,
-        children: <Widget>[
-          const Card(
-            color: Colors.amber,
-            child: Text('Gráfico'),
-          ),
-          Column(
-            crossAxisAlignment: CrossAxisAlignment.stretch,
-            children: _transactions.map((tr) {
-              return Padding(
-                padding: const EdgeInsets.all(8.0),
-                child: ListTile(
-                  tileColor: Colors.white,
-                  leading: Container(
-                    padding: const EdgeInsets.symmetric(horizontal: 16.0, vertical: 8.0),
-                    decoration: const BoxDecoration(
-                        color: Colors.blueAccent,
-                        borderRadius: BorderRadius.all(Radius.circular(20.0))),
-                    child: Text(
-                      'R\$ ${tr.value.toString().replaceAll('.', ',')}',
-                      style: const TextStyle(color: Colors.white),
-                    ),
-                  ),
-                  trailing: Text(tr.value.toString()),
-                  title: Text(
-                    tr.title,
-                    style: const TextStyle(
-                        fontSize: 16, fontWeight: FontWeight.bold),
-                  ),
-                  subtitle: Text(
-                    DateFormat('dd MMM y').format(tr.date),
-                  ),
-                ),
-              );
-            }).toList(),
-          ),
+        actions: [
+          IconButton(
+              onPressed: () => _openTransactionFormModal(context),
+              icon: const Icon(Icons.add))
         ],
+      ),
+      body: SingleChildScrollView(
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: [
+            Chart(_recentTransactions),
+            TransactionList(_transactions, _removeTransaction),
+          ],
+        ),
+      ),
+      floatingActionButton: FloatingActionButton(
+        child: const Icon(Icons.add),
+        onPressed: () => _openTransactionFormModal(context),
       ),
     );
   }
